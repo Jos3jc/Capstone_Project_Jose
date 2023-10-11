@@ -5,6 +5,8 @@ import findspark
 findspark.init()
 from pyspark.sql import SparkSession
 from pyspark.sql.types import StructType,StructField, StringType, IntegerType,BooleanType,DoubleType
+import mysql.connector as dbconnect
+from mysql.connector import Error
 
 spark = SparkSession.builder.getOrCreate()
 
@@ -64,4 +66,37 @@ df_branch_new = clean_dataset('cdw_sapp_branch.json')
 df_credit_new = clean_dataset('cdw_sapp_credit.json')
 df_customer_new = clean_dataset('cdw_sapp_custmer.json')
 
-df_branch_new.show(3), df_credit_new.show(3), df_customer_new.show(3)
+
+def create_database(db_name):
+        try:
+                connect = dbconnect.connect(host="localhost", user=private_info.user, password=private_info.password)
+                if connect.is_connected():
+                        print(f'Successfully Connected to MySQL database')
+                        cursor = connect.cursor()
+                        cursor.execute(f"CREATE DATABASE {db_name}")
+                        print(f"Database '{db_name}' created")
+                        cursor.execute(f"USE {db_name};") 
+
+        except Error as e:
+                print("Error while connect to Database:", e)
+        finally:
+                if connect.is_connected():
+                        cursor.close()
+                        connect.close()
+                print("Database connect is closed")
+
+create_database('creditcard_capstone')
+
+
+db_name = 'creditcard_capstone'
+tables_names = {'CDW_SAPP_BRANCH':df_branch_new,\
+                'CDW_SAPP_CREDIT_CARD':df_credit_new,\
+                'CDW_SAPP_CUSTOMER':df_customer_new}
+for k,v in tables_names.items():
+    v.write.format("jdbc") \
+    .mode("append") \
+    .option("url", f"jdbc:mysql://localhost:3306/{db_name}") \
+    .option("dbtable", k) \
+    .option("user", private_info.user) \
+    .option("password", private_info.password) \
+    .save()
