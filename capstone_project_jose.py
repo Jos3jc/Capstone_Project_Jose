@@ -174,3 +174,212 @@ df_loan.write.format("jdbc") \
 .option("user", private_info.user) \
 .option("password", private_info.password) \
 .save()
+
+# FRONT-END
+## CREATING DATAFRAMES AND TEMPORARY VIEWS
+
+df_branch_SQL=spark.read.format("jdbc").options(driver="com.mysql.cj.jdbc.Driver",\
+                                    user=private_info.user,\
+                                    password=private_info.password,\
+                                    url=f"jdbc:mysql://localhost:3306/{db_name}",\
+                                    dbtable="CDW_SAPP_BRANCH").load()
+
+df_credit_SQL=spark.read.format("jdbc").options(driver="com.mysql.cj.jdbc.Driver",\
+                                    user=private_info.user,\
+                                    password=private_info.password,\
+                                    url=f"jdbc:mysql://localhost:3306/{db_name}",\
+                                    dbtable="CDW_SAPP_CREDIT_CARD").load()
+
+df_customer_SQL=spark.read.format("jdbc").options(driver="com.mysql.cj.jdbc.Driver",\
+                                    user=private_info.user,\
+                                    password=private_info.password,\
+                                    url=f"jdbc:mysql://localhost:3306/{db_name}",\
+                                    dbtable="CDW_SAPP_CUSTOMER").load()
+
+df_loan_SQL=spark.read.format("jdbc").options(driver="com.mysql.cj.jdbc.Driver",\
+                                    user=private_info.user,\
+                                    password=private_info.password,\
+                                    url=f"jdbc:mysql://localhost:3306/{db_name}",\
+                                    dbtable="CDW_SAPP_LOAN_APPLICATION").load()
+
+
+
+df_branch_SQL.createTempView("CDW_SAPP_BRANCH")
+df_credit_SQL.createTempView("CDW_SAPP_CREDIT_CARD")
+df_customer_SQL.createTempView("CDW_SAPP_CUSTOMER")
+df_loan_SQL.createTempView("CDW_SAPP_LOAN_APPLICATION")
+
+## CREATING FRONT-END INTERFACE
+
+end_project = ''
+while end_project != 'exit':
+        print('MAIN MENU')
+        print("To interact and query data from the database, type: 'query'")
+        print("To see the Data Analysis and Visualizations from the CREDIT CARD SYSTEM DATA, type: 'credit'")
+        print("To see the Data Analysis and Visualizations from the LOAN APPLICATION DATA API, type: 'loan'")
+        print("To exit the program, type: 'exit'")
+
+        main_option = input("type your next action: ")
+
+        if main_option == 'query':
+
+                action = ''
+
+                while action != 'back':
+                        print("These are all the options that you can execute.")
+                        print("(1) Option #1: To display the transactions made by customers living in a given zip code for a given month and year ordered by day in descending order.")
+                        print("(2) Option #2: To display the number and total values of transactions for a given type.")
+                        print("(3) Option #3: To display the total number and total values of transactions for branches in a given state.")
+                        print("(4) Option #4: To check the existing account details of a customer.")
+                        print("(5) Option #5: To modify the existing account details of a customer.")
+                        print("(6) Option #6: To generate a monthly bill for a credit card number for a given month and year.")
+                        print("(7) Option #7: To display the transactions made by a customer between two dates ordered by year, month, and day in descending order.")
+                        print("(back) type 'back' to go back to the main menu")
+
+                        option = input("Type the option to be executed")
+                        option_triggers = { 'opt1':['Type the zip code: ', 'Type the year (YYYY): , 4 digits are required: ', 'Type the month (MM): , 2 digits are required: ']
+                                        ,'opt2':['Type the transaction type: ']
+                                        ,'opt3':['Type the US state abbreviation: ']
+                                        ,'opt4':['Type the credit card number: ']
+                                        ,'opt5':['Type the SSN: ', 'Type the new first name: ', 'Type the new middle name: ', 'Type the new last name: ', 'Type the new Address: ', 'Type the new City: ', 'Type the new State: ', 'Type the new Country: ', 'Type the new zip code: ', 'Type the new phone number: ', 'Type the new email: ']
+                                        ,'opt6':['Type the credit card number: ', 'Type the year (YYYY): ', 'Type the month (MM): ']
+                                        ,'opt7':['Type the credit card number: ', 'Type the first date (YYYYMMDD): ', 'Type the second date (YYYYMMDD): ']}
+                        
+                        if option == '1':
+                                input_commands = []
+                                for msg in option_triggers['opt1']:
+                                        user_input =  input(msg)
+                                        input_commands.append(user_input)
+                                # 23223, 2018 07 OK
+                                spark.sql(f"    SELECT cc.TRANSACTION_VALUE, cc.TIMEID, cu.CUST_ZIP, cc.CUST_CC_NO \
+                                                FROM CDW_SAPP_CREDIT_CARD cc\
+                                                JOIN CDW_SAPP_CUSTOMER cu\
+                                                        ON cc.CUST_SSN = cu.SSN\
+                                                WHERE   cu.CUST_ZIP = '{input_commands[0]}' AND\
+                                                        LEFT(cc.TIMEID,6) = '{input_commands[1]+input_commands[2]}'\
+                                                ORDER BY TIMEID DESC").show()
+                                                
+                        elif option == '2':
+                                input_commands = []
+                                for msg in option_triggers['opt2']:
+                                        user_input =  input(msg)
+                                        input_commands.append(user_input)
+                                #Bills OK
+                                spark.sql(f"    SELECT TRANSACTION_TYPE, COUNT(TRANSACTION_TYPE), ROUND(SUM(TRANSACTION_VALUE),2)\
+                                                FROM cdw_sapp_credit_card\
+                                                GROUP BY TRANSACTION_TYPE\
+                                                HAVING TRANSACTION_TYPE = '{input_commands[0]}'").show()
+                                                
+                        elif option == '3':
+                                input_commands = []
+                                for msg in option_triggers['opt3']:
+                                        user_input =  input(msg)
+                                        input_commands.append(user_input)
+                                #WA OK
+                                spark.sql(f"    SELECT br.BRANCH_CODE, COUNT(br.BRANCH_CODE), ROUND(SUM(cc.TRANSACTION_VALUE),2)\
+                                                FROM CDW_SAPP_BRANCH br\
+                                                LEFT JOIN CDW_SAPP_CREDIT_CARD cc\
+                                                        ON br.BRANCH_CODE = cc.BRANCH_CODE\
+                                                WHERE br.BRANCH_STATE = '{input_commands[0]}'\
+                                                GROUP BY br.BRANCH_CODE").show()
+                        elif option == '4':
+                                input_commands = []
+                                for msg in option_triggers['opt4']:
+                                        user_input =  input(msg)
+                                        input_commands.append(user_input)
+                                # 123452373 OK
+                                spark.sql(f"    SELECT *\
+                                                FROM CDW_SAPP_CUSTOMER\
+                                                WHERE SSN = '{input_commands[0]}'").show()
+                                
+                        elif option == '5':
+                               pass
+                                # # input_commands = []
+                                # # for msg in option_triggers['opt5']:
+                                # #         user_input =  input(msg)
+                                # #         input_commands.append(user_input)
+
+                                # try:
+                                #         connect = dbconnect.connect(host="localhost", user=private_info.user, password=private_info.password)
+                                #         if connect.is_connected():
+                                #                 print(f'Successfully Connected to MySQL database')
+                                #                 cursor = connect.cursor()
+                                #                 cursor.execute(f"USE {db_name};") 
+
+                                #                 cursor.execute(f"       UPDATE CDW_SAPP_CUSTOMER\
+                                #                                         SET FIRST_NAME = 'fffff'\
+                                #                                         WHERE SSN = 123451037 ")
+                                                
+                                # except Error as e:
+                                #         print("Error while connect to Database:", e)
+                                # finally:
+                                #         if connect.is_connected():
+                                #                 cursor.close()
+                                #                 connect.close()
+                                #         print("Database connect is closed")
+
+
+                                # print('The account was updated successfully.')
+
+
+                                
+                                # # 123451037 SSN
+                                # # LAST_UPDATED = NOW()\
+                                #                         # MIDDLE_NAME = '{input_commands[2]}',\
+                                #                         # LAST_NAME = '{input_commands[3]}',\
+                                #                         # FULL_STREET_ADDRESS = '{input_commands[4]}',\
+                                #                         # CUST_CITY = '{input_commands[5]}',\
+                                #                         # CUST_STATE = '{input_commands[6]}',\
+                                #                         # CUST_COUNTRY = '{input_commands[7]}',\
+                                #                         # CUST_ZIP = '{input_commands[8]}',\
+                                #                         # CUST_PHONE = '{input_commands[9]}',\
+                                #                         # CUST_EMAIL = '{input_commands[10]}'\
+                                # # spark.sql(f"    UPDATE CDW_SAPP_CUSTOMER\
+                                # #                 SET FIRST_NAME = '{input_commands[1]}'\
+                                # #                 WHERE SSN = '{input_commands[0]}' ").show()
+
+                        elif option == '6':
+                                input_commands = []
+                                for msg in option_triggers['opt6']:
+                                        user_input =  input(msg)
+                                        input_commands.append(user_input)
+                                #4210653385089392 2018 07 OK
+                                spark.sql(f"    SELECT CUST_CC_NO, ROUND(SUM(TRANSACTION_VALUE),2)\
+                                                FROM CDW_SAPP_CREDIT_CARD\
+                                                WHERE   CUST_CC_NO = '{input_commands[0]}' AND\
+                                                        LEFT(TIMEID,6) = '{input_commands[1]+input_commands[2]}'\
+                                                GROUP BY CUST_CC_NO").show() 
+                                
+                        elif option == '7':
+                                input_commands = []
+                                for msg in option_triggers['opt7']:
+                                        user_input =  input(msg)
+                                        input_commands.append(user_input)
+                                # 4210653385089392 201805 201808
+                                spark.sql(f"    SELECT *\
+                                                FROM CDW_SAPP_CREDIT_CARD\
+                                                WHERE   CUST_CC_NO = '{input_commands[0]}' AND\
+                                                        TIMEID BETWEEN '{input_commands[1]}' AND '{input_commands[2]}'\
+                                                ORDER BY TIMEID DESC").show()
+                                
+                        elif option == 'back':
+                                action = 'back'
+
+                        elif option not in ['1', '2', '3', '4', '5', '6', '7', 'e']:
+                                print('Please make sure your are typing the correct characters.')
+                        
+                        else:
+                                None
+
+
+        elif main_option == 'credit':
+                pass
+
+        elif main_option == 'loan':
+                pass
+
+        elif main_option == 'exit':
+                end_project = 'exit'
+
+        else:
+                print('Please make sure your are typing the correct characters')
