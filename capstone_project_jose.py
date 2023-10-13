@@ -1,3 +1,4 @@
+import os
 import requests as re
 import json
 import private_info
@@ -7,10 +8,13 @@ import findspark
 findspark.init()
 from pyspark.sql import SparkSession
 from pyspark.sql.types import StructType,StructField, StringType, IntegerType,BooleanType,DoubleType
+import matplotlib as mpl
+import matplotlib.pyplot as plt
 
 spark = SparkSession.builder.getOrCreate()
 
 # CREDIT CARD DATA SET 
+## TRANSFORMING CREDIT CARD DATA
 
 def clean_dataset(file_name):
     
@@ -68,7 +72,7 @@ df_branch_new = clean_dataset('cdw_sapp_branch.json')
 df_credit_new = clean_dataset('cdw_sapp_credit.json')
 df_customer_new = clean_dataset('cdw_sapp_custmer.json')
 
-
+## LOADING CREDIT CARD DATA
 def create_database(db_name):
         try:
                 connect = dbconnect.connect(host="localhost", user=private_info.user, password=private_info.password)
@@ -251,7 +255,7 @@ while end_project != 'exit':
                                         user_input =  input(msg)
                                         input_commands.append(user_input)
                                 # 23223, 2018 07 OK
-                                spark.sql(f"    SELECT cc.TRANSACTION_VALUE, cc.TIMEID, cu.CUST_ZIP, cc.CUST_CC_NO \
+                                spark.sql(f"    SELECT cc.CUST_SSN, cc.CUST_CC_NO, cu.CUST_ZIP, cc.TIMEID, cc.TRANSACTION_VALUE\
                                                 FROM CDW_SAPP_CREDIT_CARD cc\
                                                 JOIN CDW_SAPP_CUSTOMER cu\
                                                         ON cc.CUST_SSN = cu.SSN\
@@ -265,7 +269,7 @@ while end_project != 'exit':
                                         user_input =  input(msg)
                                         input_commands.append(user_input)
                                 #Bills OK
-                                spark.sql(f"    SELECT TRANSACTION_TYPE, COUNT(TRANSACTION_TYPE), ROUND(SUM(TRANSACTION_VALUE),2)\
+                                spark.sql(f"    SELECT TRANSACTION_TYPE, COUNT(TRANSACTION_TYPE) AS NUMBER_OF_TRANSACTIONS, ROUND(SUM(TRANSACTION_VALUE),2) AS TOTAL_VALUE_OF_TRANSACTIONS\
                                                 FROM cdw_sapp_credit_card\
                                                 GROUP BY TRANSACTION_TYPE\
                                                 HAVING TRANSACTION_TYPE = '{input_commands[0]}'").show()
@@ -276,7 +280,7 @@ while end_project != 'exit':
                                         user_input =  input(msg)
                                         input_commands.append(user_input)
                                 #WA OK
-                                spark.sql(f"    SELECT br.BRANCH_CODE, COUNT(br.BRANCH_CODE), ROUND(SUM(cc.TRANSACTION_VALUE),2)\
+                                spark.sql(f"    SELECT br.BRANCH_CODE, COUNT(br.BRANCH_CODE) AS TOTAL_NUMBER_OF_TRANSACTIONS, ROUND(SUM(cc.TRANSACTION_VALUE),2) AS TOTAL_VALUE_OF_TRANSACTIONS\
                                                 FROM CDW_SAPP_BRANCH br\
                                                 LEFT JOIN CDW_SAPP_CREDIT_CARD cc\
                                                         ON br.BRANCH_CODE = cc.BRANCH_CODE\
@@ -344,7 +348,7 @@ while end_project != 'exit':
                                         user_input =  input(msg)
                                         input_commands.append(user_input)
                                 #4210653385089392 2018 07 OK
-                                spark.sql(f"    SELECT CUST_CC_NO, ROUND(SUM(TRANSACTION_VALUE),2)\
+                                spark.sql(f"    SELECT CUST_CC_NO, ROUND(SUM(TRANSACTION_VALUE),2) AS MONTHLY_BILL\
                                                 FROM CDW_SAPP_CREDIT_CARD\
                                                 WHERE   CUST_CC_NO = '{input_commands[0]}' AND\
                                                         LEFT(TIMEID,6) = '{input_commands[1]+input_commands[2]}'\
@@ -373,7 +377,67 @@ while end_project != 'exit':
 
 
         elif main_option == 'credit':
-                pass
+
+                print('Number of Transactions by Transaction type')
+                df_31 = spark.sql("     SELECT TRANSACTION_TYPE, COUNT(TRANSACTION_TYPE) as COUNT\
+                                        FROM CDW_SAPP_CREDIT_CARD\
+                                        GROUP BY TRANSACTION_TYPE\
+                                        ORDER BY COUNT DESC\
+                                        ").toPandas()
+                ax31 = df_31.plot.bar(  x = 'TRANSACTION_TYPE', 
+                                        y ='COUNT',
+                                        figsize = (13,5),
+                                        legend = False,
+                                        rot = 0,
+                                        color=['seagreen' if i == 'Bills' else 'turquoise' for i in df_31['TRANSACTION_TYPE']])
+                plt.grid(linestyle='--', linewidth=0.8)
+                plt.title('Number of Transactions by Transaction type', size = 15, color= 'black', weight ='bold')
+                plt.ylabel('Number of Transactions', size = 15, color= 'gray')
+                plt.xlabel('Transaction Type', size = 15, color= 'gray')
+                ax31.bar_label(ax31.containers[0]);
+                plt.savefig(str(os.getcwd())[2:]+'\plot_folder\creditcard_1_Number_of_Transactions_by_Transaction_type.png')
+                plt.show()
+
+
+                print('Number of customers by States')
+                df_32 = spark.sql("     SELECT CUST_STATE, COUNT(CUST_STATE) as COUNT\
+                                        FROM CDW_SAPP_CUSTOMER\
+                                        GROUP BY CUST_STATE\
+                                        ORDER BY COUNT DESC\
+                                        ").toPandas()
+                ax32 = df_32.plot.bar(x = 'CUST_STATE', 
+                                y ='COUNT',
+                                figsize=(13,5),
+                                legend = False,
+                                rot = 0,
+                                color= ['seagreen' if i == 'NY' else 'turquoise' for i in df_32['CUST_STATE']])
+                plt.grid(linestyle='--', linewidth=0.8)
+                plt.title('Number of customers by States', size = 15, color= 'black', weight ='bold')
+                plt.ylabel('Number of Customers', size = 15, color= 'gray')
+                plt.xlabel('US States', size = 15, color= 'gray')
+                ax32.bar_label(ax32.containers[0], size=8);
+                plt.savefig(str(os.getcwd())[2:]+'\plot_folder\creditcard_2_Number_of_customers_by_States.png')
+                plt.show()
+
+                print('Top_10_Customers_with_the_highest_transaction_amounts')
+                df_33 = spark.sql("     SELECT CUST_SSN, ROUND(SUM(TRANSACTION_VALUE),2) AS HIGHEST_AMOUNT\
+                                        FROM CDW_SAPP_CREDIT_CARD\
+                                        GROUP BY CUST_SSN\
+                                        ORDER BY HIGHEST_AMOUNT DESC\
+                                        LIMIT 10").toPandas()
+                ax33 = df_33.plot.bar(x = 'CUST_SSN', 
+                                y ='HIGHEST_AMOUNT',
+                                figsize = (13,5),
+                                legend = False,
+                                rot = 0,
+                                color=['seagreen' if i == 123451125 else 'turquoise' for i in df_33['CUST_SSN']])
+                plt.grid(linestyle='--', linewidth=0.8)
+                plt.title('Top 10 Customers with the highest transaction amounts ', size = 15, color= 'black', weight ='bold')
+                plt.ylabel('Total transaction amount made it by customer', size = 13, color= 'gray')
+                plt.xlabel('SSN of Customers', size = 15, color= 'gray')
+                ax33.bar_label(ax33.containers[0]);
+                plt.savefig(str(os.getcwd())[2:]+'\plot_folder\creditcard_3_Top_10_Customers.png')
+                plt.show()
 
         elif main_option == 'loan':
                 pass

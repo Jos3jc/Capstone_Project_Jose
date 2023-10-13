@@ -3,3 +3,5 @@ requests
 findspark
 pyspark
 mysql-connector-python
+matplotlib
+pandas
