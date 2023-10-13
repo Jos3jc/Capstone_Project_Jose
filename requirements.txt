@@ -2,3 +2,4 @@ numpy
 requests
 findspark
 pyspark
+mysql-connector-python

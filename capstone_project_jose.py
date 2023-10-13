@@ -1,6 +1,8 @@
 import requests as re
 import json
 import private_info
+import mysql.connector as dbconnect
+from mysql.connector import Error
 import findspark
 findspark.init()
 from pyspark.sql import SparkSession
@@ -64,4 +66,90 @@ df_branch_new = clean_dataset('cdw_sapp_branch.json')
 df_credit_new = clean_dataset('cdw_sapp_credit.json')
 df_customer_new = clean_dataset('cdw_sapp_custmer.json')
 
-df_branch_new.show(3), df_credit_new.show(3), df_customer_new.show(3)
+
+def create_database(db_name):
+        try:
+                connect = dbconnect.connect(host="localhost", user=private_info.user, password=private_info.password)
+                if connect.is_connected():
+                        print(f'Successfully Connected to MySQL database')
+                        cursor = connect.cursor()
+                        cursor.execute(f"CREATE DATABASE {db_name}")
+                        print(f"Database '{db_name}' created")
+                        cursor.execute(f"USE {db_name};") 
+
+        except Error as e:
+                print("Error while connect to Database:", e)
+        finally:
+                if connect.is_connected():
+                        cursor.close()
+                        connect.close()
+                print("Database connect is closed")
+
+create_database('creditcard_capstone')
+
+
+db_name = 'creditcard_capstone'
+tables_names = {'CDW_SAPP_BRANCH':df_branch_new,\
+                'CDW_SAPP_CREDIT_CARD':df_credit_new,\
+                'CDW_SAPP_CUSTOMER':df_customer_new}
+for k,v in tables_names.items():
+    v.write.format("jdbc") \
+    .mode("append") \
+    .option("url", f"jdbc:mysql://localhost:3306/{db_name}") \
+    .option("dbtable", k) \
+    .option("user", private_info.user) \
+    .option("password", private_info.password) \
+    .save()
+
+def modify_table_type():
+        try:
+                connect_u_t = dbconnect.connect(database=db_name, user=private_info.user, password=private_info.password)
+                if connect_u_t.is_connected():
+                        print(f'Coneceted to: {db_name}')
+
+                        cursor = connect_u_t.cursor()   
+                        cursor.execute("ALTER TABLE CDW_SAPP_BRANCH \
+                                        MODIFY COLUMN BRANCH_CODE INTEGER,\
+                                        MODIFY COLUMN BRANCH_NAME VARCHAR(50),\
+                                        MODIFY COLUMN BRANCH_STREET VARCHAR(50),\
+                                        MODIFY COLUMN BRANCH_CITY VARCHAR(50),\
+                                        MODIFY COLUMN BRANCH_STATE VARCHAR(50),\
+                                        MODIFY COLUMN BRANCH_ZIP INTEGER,\
+                                        MODIFY COLUMN BRANCH_PHONE VARCHAR(50),\
+                                        MODIFY COLUMN LAST_UPDATED TIMESTAMP")
+
+                        cursor.execute("ALTER TABLE CDW_SAPP_CREDIT_CARD \
+                                        MODIFY COLUMN CUST_CC_NO VARCHAR(50),\
+                                        MODIFY COLUMN TIMEID VARCHAR(50),\
+                                        MODIFY COLUMN CUST_SSN INTEGER,\
+                                        MODIFY COLUMN BRANCH_CODE INTEGER,\
+                                        MODIFY COLUMN TRANSACTION_TYPE VARCHAR(50),\
+                                        MODIFY COLUMN TRANSACTION_VALUE DOUBLE,\
+                                        MODIFY COLUMN TRANSACTION_ID INTEGER")  
+                        
+                        cursor.execute("ALTER TABLE CDW_SAPP_CUSTOMER \
+                                        MODIFY COLUMN SSN INTEGER,\
+                                        MODIFY COLUMN FIRST_NAME VARCHAR(50),\
+                                        MODIFY COLUMN MIDDLE_NAME VARCHAR(50),\
+                                        MODIFY COLUMN LAST_NAME VARCHAR(50),\
+                                        MODIFY COLUMN CREDIT_CARD_NO VARCHAR(50),\
+                                        MODIFY COLUMN FULL_STREET_ADDRESS VARCHAR(50),\
+                                        MODIFY COLUMN CUST_CITY VARCHAR(50),\
+                                        MODIFY COLUMN CUST_STATE VARCHAR(50),\
+                                        MODIFY COLUMN CUST_COUNTRY VARCHAR(50),\
+                                        MODIFY COLUMN CUST_ZIP INTEGER,\
+                                        MODIFY COLUMN CUST_PHONE VARCHAR(50),\
+                                        MODIFY COLUMN CUST_EMAIL VARCHAR(50),\
+                                        MODIFY COLUMN LAST_UPDATED TIMESTAMP,\
+                                        ADD PRIMARY KEY (SSN)")
+                        connect_u_t.commit()
+
+        except Error as e:
+                print("Error while connect_u_t to Database:", e)
+        finally:
+                if connect_u_t.is_connected():
+                        cursor.close()
+                        connect_u_t.close()
+                print("Database connect_u_t is closed")
+
+modify_table_type()
