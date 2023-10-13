@@ -99,13 +99,13 @@ tables_names = {'CDW_SAPP_BRANCH':df_branch_new,\
                 'CDW_SAPP_CREDIT_CARD':df_credit_new,\
                 'CDW_SAPP_CUSTOMER':df_customer_new}
 for k,v in tables_names.items():
-    v.write.format("jdbc") \
-    .mode("append") \
-    .option("url", f"jdbc:mysql://localhost:3306/{db_name}") \
-    .option("dbtable", k) \
-    .option("user", private_info.user) \
-    .option("password", private_info.password) \
-    .save()
+        v.write.format("jdbc") \
+        .mode("append") \
+        .option("url", f"jdbc:mysql://localhost:3306/{db_name}") \
+        .option("dbtable", k) \
+        .option("user", private_info.user) \
+        .option("password", private_info.password) \
+        .save()
 
 def modify_table_type():
         try:
@@ -168,7 +168,7 @@ print (str(loan_get.status_code))
 
 loan_json = loan_get.json()
 with open('cdw_sapp_loan_application.json', 'w') as f:
-    json.dump(loan_json, f)
+        json.dump(loan_json, f)
 
 df_loan = spark.read.json('cdw_sapp_loan_application.json')
 df_loan.write.format("jdbc") \
@@ -240,8 +240,8 @@ while end_project != 'exit':
                         print("(7) Option #7: To display the transactions made by a customer between two dates ordered by year, month, and day in descending order.")
                         print("(back) type 'back' to go back to the main menu")
 
-                        option = input("Type the option to be executed")
-                        option_triggers = { 'opt1':['Type the zip code: ', 'Type the year (YYYY): , 4 digits are required: ', 'Type the month (MM): , 2 digits are required: ']
+                        option = input("Type the option to be executed: ")
+                        option_triggers = { 'opt1':['Type the zip code: ', 'Type the year (YYYY): ', '4 digits are required: ', 'Type the month (MM): ', '2 digits are required: ']
                                         ,'opt2':['Type the transaction type: ']
                                         ,'opt3':['Type the US state abbreviation: ']
                                         ,'opt4':['Type the credit card number: ']
@@ -297,50 +297,39 @@ while end_project != 'exit':
                                                 WHERE SSN = '{input_commands[0]}'").show()
                                 
                         elif option == '5':
-                               pass
-                                # # input_commands = []
-                                # # for msg in option_triggers['opt5']:
-                                # #         user_input =  input(msg)
-                                # #         input_commands.append(user_input)
-
-                                # try:
-                                #         connect = dbconnect.connect(host="localhost", user=private_info.user, password=private_info.password)
-                                #         if connect.is_connected():
-                                #                 print(f'Successfully Connected to MySQL database')
-                                #                 cursor = connect.cursor()
-                                #                 cursor.execute(f"USE {db_name};") 
-
-                                #                 cursor.execute(f"       UPDATE CDW_SAPP_CUSTOMER\
-                                #                                         SET FIRST_NAME = 'fffff'\
-                                #                                         WHERE SSN = 123451037 ")
-                                                
-                                # except Error as e:
-                                #         print("Error while connect to Database:", e)
-                                # finally:
-                                #         if connect.is_connected():
-                                #                 cursor.close()
-                                #                 connect.close()
-                                #         print("Database connect is closed")
-
-
-                                # print('The account was updated successfully.')
-
-
-                                
-                                # # 123451037 SSN
-                                # # LAST_UPDATED = NOW()\
-                                #                         # MIDDLE_NAME = '{input_commands[2]}',\
-                                #                         # LAST_NAME = '{input_commands[3]}',\
-                                #                         # FULL_STREET_ADDRESS = '{input_commands[4]}',\
-                                #                         # CUST_CITY = '{input_commands[5]}',\
-                                #                         # CUST_STATE = '{input_commands[6]}',\
-                                #                         # CUST_COUNTRY = '{input_commands[7]}',\
-                                #                         # CUST_ZIP = '{input_commands[8]}',\
-                                #                         # CUST_PHONE = '{input_commands[9]}',\
-                                #                         # CUST_EMAIL = '{input_commands[10]}'\
-                                # # spark.sql(f"    UPDATE CDW_SAPP_CUSTOMER\
-                                # #                 SET FIRST_NAME = '{input_commands[1]}'\
-                                # #                 WHERE SSN = '{input_commands[0]}' ").show()
+                                input_commands = []
+                                for msg in option_triggers['opt5']:
+                                        user_input =  input(msg)
+                                        input_commands.append(user_input)
+                                try:
+                                        connect = dbconnect.connect(host="localhost", user=private_info.user, password=private_info.password)
+                                        if connect.is_connected():
+                                                print(f'Successfully Connected to MySQL database')
+                                                cursor = connect.cursor()
+                                                cursor.execute(f"USE {db_name};") 
+                                                # 123451037 SSN OK
+                                                cursor.execute(f"       UPDATE cdw_sapp_customer\
+                                                                        SET     FIRST_NAME = '{input_commands[1]}',\
+                                                                                MIDDLE_NAME = '{input_commands[2]}',\
+                                                                                LAST_NAME = '{input_commands[3]}',\
+                                                                                FULL_STREET_ADDRESS = '{input_commands[4]}',\
+                                                                                CUST_CITY = '{input_commands[5]}',\
+                                                                                CUST_STATE = '{input_commands[6]}',\
+                                                                                CUST_COUNTRY = '{input_commands[7]}',\
+                                                                                CUST_ZIP = '{input_commands[8]}',\
+                                                                                CUST_PHONE = '{input_commands[9]}',\
+                                                                                CUST_EMAIL = '{input_commands[10]}',\
+                                                                                LAST_UPDATED = NOW()\
+                                                                        WHERE SSN = '{input_commands[0]}' ")
+                                        connect.commit()
+                                except Error as e:
+                                        print("Error while connect to Database:", e)
+                                finally:
+                                        if connect.is_connected():
+                                                cursor.close()
+                                                connect.close()
+                                        print("Database connect is closed")
+                                print('The account was updated successfully.')
 
                         elif option == '6':
                                 input_commands = []
