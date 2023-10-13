@@ -10,6 +10,8 @@ from pyspark.sql.types import StructType,StructField, StringType, IntegerType,Bo
 
 spark = SparkSession.builder.getOrCreate()
 
+# CREDIT CARD DATA SET 
+
 def clean_dataset(file_name):
     
     if file_name == 'cdw_sapp_branch.json':
@@ -153,3 +155,22 @@ def modify_table_type():
                 print("Database connect_u_t is closed")
 
 modify_table_type()
+
+# LOAN APPLICATION DATA API
+
+url = "https://raw.githubusercontent.com/platformps/LoanDataset/main/loan_data.json"
+loan_get = re.get(url)
+print (str(loan_get.status_code))
+
+loan_json = loan_get.json()
+with open('cdw_sapp_loan_application.json', 'w') as f:
+    json.dump(loan_json, f)
+
+df_loan = spark.read.json('cdw_sapp_loan_application.json')
+df_loan.write.format("jdbc") \
+.mode("append") \
+.option("url", f"jdbc:mysql://localhost:3306/{db_name}") \
+.option("dbtable", 'CDW_SAPP_LOAN_APPLICATION') \
+.option("user", private_info.user) \
+.option("password", private_info.password) \
+.save()
